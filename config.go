@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v2"
 )
@@ -21,4 +22,13 @@ func parseConfig(r io.Reader) (config, error) {
 	err = yaml.Unmarshal(content, &c)
 
 	return c, err
+}
+
+func parseConfigFile(path string) (config, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return config{}, err
+	}
+
+	return parseConfig(f)
 }

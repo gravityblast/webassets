@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -53,35 +56,53 @@ func (b *bundler) buildSourcePath(name, extension string) string {
 	return ""
 }
 
+func (b *bundler) bundleFiles(outName string, srcNames []string, mf minifyFunc, ext string) {
+	var sourceFiles []io.Reader
+	buf := bytes.NewBuffer([]byte{})
+
+	for _, srcName := range srcNames {
+		srcPath := b.buildSourcePath(srcName, ext)
+		sourceFile, err := os.Open(srcPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer sourceFile.Close()
+
+		sourceFiles = append(sourceFiles, sourceFile)
+	}
+
+	c := newMinifier(mf, sourceFiles, buf)
+	c.minify()
+
+	content, err := ioutil.ReadAll(buf)
+	if err != nil {
+		logger.Fatalf("%s", err)
+	}
+
+	h := md5.New()
+	h.Write(content)
+	outName = fmt.Sprintf("%s-%x", outName, h.Sum(nil))
+	outPath := b.buildOuputPath(outName, ext)
+
+	outFile, err := os.Create(outPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outFile.Close()
+	w, err := outFile.Write(content)
+	if err != nil {
+		logger.Fatalf("%s", err)
+	}
+
+	logger.Printf("writtent %d bytes to %s", w, outPath)
+}
+
 func (b *bundler) bundleJavascripts() {
 	var wg sync.WaitGroup
 	for outName, srcNames := range b.config.Javascripts {
 		wg.Add(1)
 		go func(outName string, srcNames []string) {
-			outPath := b.buildOuputPath(outName, "js")
-
-			outFile, err := os.Create(outPath)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer outFile.Close()
-
-			var sourceFiles []io.Reader
-
-			for _, srcName := range srcNames {
-				srcPath := b.buildSourcePath(srcName, "js")
-				sourceFile, err := os.Open(srcPath)
-				if err != nil {
-					log.Fatal(err)
-				}
-				defer sourceFile.Close()
-
-				sourceFiles = append(sourceFiles, sourceFile)
-			}
-
-			c := newMinifier(jsMinify, sourceFiles, outFile)
-			c.minify()
-
+			b.bundleFiles(outName, srcNames, jsMinify, "js")
 			wg.Done()
 		}(outName, srcNames)
 	}

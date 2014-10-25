@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -82,18 +85,21 @@ func TestBundler_Bundle(t *testing.T) {
 	b.bundle()
 
 	tests := map[string]string{
-		"application.js": `
+		"application": `
 function file1(){return"file1"}
 function file2(){return"file2"}`,
-		"admin.js": `
+		"admin": `
 function admin1(){return"admin1"}
 function admin2(){return"admin2"}
 function editor(){return"editor"}`,
 	}
 
 	for filename, expectedContent := range tests {
-		f, err := os.Open(fmt.Sprintf("%s/%s", b.outputPath, filename))
-		assert.Nil(t, err)
+		h := md5.New()
+		io.Copy(h, bytes.NewBufferString(expectedContent))
+
+		path := fmt.Sprintf("%s/%s-%x.js", b.outputPath, filename, h.Sum(nil))
+		f, err := os.Open(path)
 
 		content, err := ioutil.ReadAll(f)
 		assert.Nil(t, err)
