@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -34,7 +33,7 @@ func (b *bundler) bundle() {
 func (b *bundler) initOutputPath() {
 	err := os.MkdirAll(b.outputPath, 0777)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("%s", err.Error())
 	}
 }
 
@@ -52,7 +51,7 @@ func (b *bundler) buildSourcePath(name, extension string) string {
 		}
 	}
 
-	log.Fatalf("can't find asset %s", filename)
+	logger.Fatalf("can't find asset %s in folders %v", filename, b.sourcePaths)
 	return ""
 }
 
@@ -64,7 +63,7 @@ func (b *bundler) bundleFiles(outName string, srcNames []string, mf minifyFunc, 
 		srcPath := b.buildSourcePath(srcName, ext)
 		sourceFile, err := os.Open(srcPath)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatalf("%s", err.Error())
 		}
 		defer sourceFile.Close()
 
@@ -86,7 +85,7 @@ func (b *bundler) bundleFiles(outName string, srcNames []string, mf minifyFunc, 
 
 	outFile, err := os.Create(outPath)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("%s", err.Error())
 	}
 	defer outFile.Close()
 	w, err := outFile.Write(content)
